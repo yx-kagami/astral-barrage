@@ -20,13 +20,17 @@ export class FlightArt {
   draw(delta: number, run: Run | null) {
     const g = this.graphics
     if (!run || run.state === 'playing') this.skyTime += delta
-    g.clear().fillStyle(0x080b19).fillRect(0, 0, WIDTH, HEIGHT)
+    g.clear()
+    if (!run) return
     for (const star of this.stars) {
       g.fillStyle(star.layer === 2 ? 0xb7bfff : 0x6b91c9, 0.2 + star.layer * 0.16)
       g.fillCircle(star.x, (star.y + this.skyTime * (7 + 15 * star.layer)) % HEIGHT, 0.56 + star.layer * 0.32)
     }
 
-    if (!run) return
+    for (const item of run.drops.items) {
+      g.lineStyle(1, 0xcaffec, 0.85).fillStyle(0x51e7ac, 0.9)
+      polygon(g, item.x, item.y - 5, item.x + 4, item.y, item.x, item.y + 5, item.x - 4, item.y)
+    }
     for (const enemy of run.enemies) {
       const { x, y, radius: r } = enemy
       g.fillStyle(0x21132c).lineStyle(1.5, enemy.stats.color, 0.9)
@@ -51,6 +55,11 @@ export class FlightArt {
       g.fillStyle(bullet.color)
       if (bullet.shape === Shape.Needle) {
         g.fillRect(x - 1.25, y - 6, 2.5, 13)
+      } else if (bullet.shape === Shape.Missile) {
+        g.save().translateCanvas(x, y).rotateCanvas(Math.atan2(bullet.vy, bullet.vx) + Math.PI / 2)
+        g.lineStyle(0, 0)
+        polygon(g, 0, -8, 3, 4, 0, 8, -3, 4)
+        g.restore()
       } else if (bullet.shape === Shape.Diamond) {
         g.lineStyle(1, 0xfff6ff, 0.7)
         polygon(g, x, y - r - 1, x + r, y, x, y + r + 1, x - r, y)

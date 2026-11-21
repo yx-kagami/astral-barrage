@@ -1,6 +1,6 @@
 import { HEIGHT, WIDTH } from '../config/field'
 
-export const enum Shape { Orb, Diamond, Needle }
+export const enum Shape { Orb, Diamond, Needle, Missile }
 export interface Target {
   x: number
   y: number
@@ -14,6 +14,8 @@ export interface Bullet extends Target {
   shape: Shape
   color: number
   grazed: boolean
+  pierce: number
+  hits: Target[]
 }
 
 export function overlaps(a: Target, b: Target, margin = 0) {
@@ -27,9 +29,9 @@ export class BulletManager {
   private readonly free: Bullet[] = []
 
   spawn(x: number, y: number, angle: number, speed: number, radius: number, color: number,
-    shape: Shape, friendly = false, damage = 0) {
+    shape: Shape, friendly = false, damage = 0, pierce = 0) {
     if (this.active.length >= (friendly ? 1190 : 1080)) return
-    const bullet = this.free.pop() ?? {} as Bullet
+    const bullet = this.free.pop() ?? { hits: [] } as unknown as Bullet
     bullet.x = x
     bullet.y = y
     bullet.vx = Math.cos(angle) * speed
@@ -40,6 +42,8 @@ export class BulletManager {
     bullet.friendly = friendly
     bullet.damage = damage
     bullet.grazed = false
+    bullet.pierce = pierce
+    bullet.hits.length = 0
     this.active.push(bullet)
     return bullet
   }
@@ -58,6 +62,7 @@ export class BulletManager {
     const bullet = this.active[index]
     const last = this.active.pop()!
     if (index < this.active.length) this.active[index] = last
+    bullet.hits.length = 0
     this.free.push(bullet)
   }
 

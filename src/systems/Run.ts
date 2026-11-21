@@ -1,3 +1,4 @@
+import type { Upgrade } from '../config/upgrades'
 import { HEIGHT } from '../config/field'
 import { BOMB_CHARGE, BOSS, GRAZE_MARGIN, MAX_BOMBS, WAVE_LANES, WAVE_SECTORS } from '../config/mission'
 import { Boss } from '../entities/Boss'
@@ -5,11 +6,13 @@ import { Enemy } from '../entities/Enemy'
 import { Player } from '../entities/Player'
 import type { FlightInput } from '../entities/Player'
 import { BulletManager, overlaps, Shape } from './BulletManager'
-import type { Bullet } from './BulletManager'
+import type { Bullet, Target } from './BulletManager'
+import { Drops } from './Drops'
+import { Progression } from './Progression'
 import { Effects } from './Effects'
 import { aim, ring, spread } from './patterns'
 
-export type RunState = 'playing' | 'paused' | 'won' | 'lost'
+export type RunState = 'playing' | 'upgrade' | 'paused' | 'won' | 'lost'
 
 export function graze(bullet: Bullet, player: Player) {
   if (bullet.friendly || bullet.grazed || overlaps(bullet, player) || !overlaps(bullet, player, GRAZE_MARGIN)) return false
@@ -22,6 +25,8 @@ export class Run {
   readonly bullets = new BulletManager()
   readonly enemies: Enemy[] = []
   readonly effects: Effects
+  readonly drops = new Drops()
+  readonly progression = new Progression()
   boss: Boss | null = null
   state: RunState = 'playing'
   time = 0
@@ -44,11 +49,7 @@ export class Run {
     this.time += dt
     this.effects.update(dt)
     this.player.move(dt, input)
-    this.player.fireCooldown -= dt
-    if (this.player.fireCooldown <= 0) {
-      this.player.fireCooldown += 0.15
-      this.bullets.spawn(this.player.x, this.player.y - 15, -Math.PI / 2, 680, 2.5, 0x82efff, Shape.Needle, true, 8)
-    }
+    this.fire(dt)
 
     if (this.time >= BOSS.arrival && !this.boss) {
       this.enemies.length = 0
@@ -57,10 +58,65 @@ export class Run {
     }
     if (this.boss) this.boss.update(dt, this.bullets, this.player)
     else this.updateEnemies(dt)
+    this.steerMissiles(dt)
     this.bullets.update(dt, this.collide)
-    if (this.clearHostile || this.state !== 'playing') {
+    if (this.state === 'playing') {
+      this.progression.xp += this.drops.update(this.player, dt)
+      if (this.progression.ready()) this.state = 'upgrade'
+    }
+    if (this.clearHostile || !this.player.lives || this.boss?.hp === 0) {
       this.bullets.clear(true)
       this.clearHostile = false
+    }
+  }
+
+  choose(id: Upgrade) {
+    if (this.state !== 'upgrade' || !this.progression.choose(id, this.player)) return
+    this.state = this.progression.ready() ? 'upgrade' : 'playing'
+  }
+
+  private fire(dt: number) {
+    const { player, progression } = this
+    player.fireCooldown -= dt
+    if (player.fireCooldown <= 0) {
+      player.fireCooldown += progression.interval
+      const twin = progression.ranks.twin > 0
+      const damage = progression.mainDamage * progression.twinFactor
+      const heading = -Math.PI / 2
+      this.bullets.spawn(player.x - (twin ? 7 : 0), player.y - 15, heading, 680, 2.5, 0x82efff,
+        Shape.Needle, true, damage, progression.piercing)
+      if (twin) this.bullets.spawn(player.x + 7, player.y - 15, heading, 680, 2.5, 0x82efff,
+        Shape.Needle, true, damage, progression.piercing)
+      if (progression.ranks.wing) {
+        this.bullets.spawn(player.x - 15, player.y, heading - 0.24, 570, 2, 0xbbadff, Shape.Needle, true, progression.wingDamage)
+        this.bullets.spawn(player.x + 15, player.y, heading + 0.24, 570, 2, 0xbbadff, Shape.Needle, true, progression.wingDamage)
+      }
+    }
+    if (progression.missileDue(dt)) this.bullets.spawn(player.x, player.y - 14, -Math.PI / 2, 330, 3.5, 0x7effc2,
+      Shape.Missile, true, progression.missileDamage)
+  }
+
+  private steerMissiles(dt: number) {
+    for (const bullet of this.bullets.active) {
+      if (bullet.shape !== Shape.Missile) continue
+      let target: Target | null = this.boss
+      if (!target) {
+        let nearest = Infinity
+        for (const enemy of this.enemies) {
+          if (enemy.y < 0) continue
+          const distance = (enemy.x - bullet.x) ** 2 + (enemy.y - bullet.y) ** 2
+          if (distance >= nearest) continue
+          target = enemy
+          nearest = distance
+        }
+      }
+      if (!target) continue
+      const heading = Math.atan2(bullet.vy, bullet.vx)
+      const difference = aim(bullet, target) - heading
+      const offset = Math.atan2(Math.sin(difference), Math.cos(difference))
+      const next = heading + Math.max(-4.7 * dt, Math.min(4.7 * dt, offset))
+      bullet.vx = 330 * Math.cos(next)
+      bullet.vy = 330 * Math.sin(next)
     }
   }
 
@@ -116,6 +172,7 @@ export class Run {
     if (enemy.hp > 0) return
     this.kills++
     this.score += enemy.stats.score
+    this.drops.add(enemy.x, enemy.y, enemy.stats.xp)
     this.effects.burst(enemy.x, enemy.y, enemy.stats.color, 20)
     this.enemies.splice(index, 1)
   }
@@ -141,9 +198,11 @@ export class Run {
         return true
       }
       for (let index = this.enemies.length - 1; index >= 0; index--) {
-        if (!overlaps(bullet, this.enemies[index])) continue
+        const enemy = this.enemies[index]
+        if (bullet.hits.includes(enemy) || !overlaps(bullet, enemy)) continue
         this.damageEnemy(index, bullet.damage)
-        return true
+        if (bullet.pierce-- <= 0) return true
+        bullet.hits.push(enemy)
       }
     } else if (overlaps(bullet, this.player)) {
       if (!this.player.hit()) return false
@@ -154,7 +213,7 @@ export class Run {
       this.grazes++
       this.score += 15
       if (this.bombs < MAX_BOMBS) {
-        this.charge++
+        this.charge += this.progression.grazeEnergy
         if (this.charge >= BOMB_CHARGE) {
           this.charge -= BOMB_CHARGE
           this.bombs++
