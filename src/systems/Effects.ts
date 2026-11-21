@@ -12,8 +12,12 @@ export class Effects {
       const spark = this.sparks[this.next++ % this.sparks.length]
       const angle = index * 2.4 + this.next * 0.13
       const speed = 25 + this.next * 31 % 143
-      Object.assign(spark, { x, y, color, life: 0.28 + (this.next % 10) * 0.041,
-        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed })
+      spark.x = x
+      spark.y = y
+      spark.color = color
+      spark.life = 0.28 + (this.next % 10) * 0.041
+      spark.vx = Math.cos(angle) * speed
+      spark.vy = Math.sin(angle) * speed
     }
   }
 

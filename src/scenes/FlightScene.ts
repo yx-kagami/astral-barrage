@@ -144,7 +144,7 @@ export class FlightScene extends Phaser.Scene {
   }
 
   update(_time: number, ms: number) {
-    const dt = Math.min(ms / 1000, 0.05)
+    const dt = Math.min(ms / 1000, 0.1)
     const run = this.run
     if (run?.state === 'playing') {
       this.accumulator += dt

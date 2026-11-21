@@ -46,16 +46,19 @@ export class Boss {
     const heading = aim(this, target)
 
     if (this.phase === 1) {
-      if (this.attack % 2 === 0) spread(pool, this, heading, 9, 0.166, 169, 0xff7eab)
-      else ring(pool, this, this.attack * 0.186, 18, 129, 0xc895ff)
-      this.shotIn = 1.42
-    } else if (this.attack % 14 === 13) {
-      spread(pool, this, heading, 7, 0.22, 224, 0xff8e9b)
-      this.shotIn = 0.91
+      const { fan, ring: circle, interval } = BOSS.first
+      if (this.attack % 2 === 0) spread(pool, this, heading, fan.count, fan.spread, fan.speed, fan.color)
+      else ring(pool, this, this.attack * circle.rotation, circle.count, circle.speed, circle.color)
+      this.shotIn = interval
+    } else if (this.attack % BOSS.second.shotsPerCycle === BOSS.second.shotsPerCycle - 1) {
+      const { aimed } = BOSS.second
+      spread(pool, this, heading, aimed.count, aimed.spread, aimed.speed, aimed.color)
+      this.shotIn = aimed.interval
     } else {
-      this.spin += 0.21
-      spread(pool, this, this.spin, 4, Math.PI / 2, 158, 0xd893ff)
-      this.shotIn = 0.135
+      const { spiral } = BOSS.second
+      this.spin += spiral.rotation
+      spread(pool, this, this.spin, spiral.count, 2 * Math.PI / spiral.count, spiral.speed, spiral.color)
+      this.shotIn = spiral.interval
     }
     this.attack++
   }

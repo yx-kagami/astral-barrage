@@ -14,22 +14,30 @@ export class FlightArt {
     layer: index % 3,
   }))
   private skyTime = 0
+  private lastRun: Run | null | undefined
+  private lastState: Run['state'] | undefined
 
   constructor(private readonly graphics: Graphics) {}
 
   draw(delta: number, run: Run | null) {
+    const state = run?.state
+    if (this.lastRun === run && this.lastState === state &&
+        (!run || state === 'paused' || state === 'upgrade')) return
+    this.lastRun = run
+    this.lastState = state
     const g = this.graphics
-    if (!run || run.state === 'playing') this.skyTime += delta
+    if (state === 'playing') this.skyTime += delta
     g.clear()
     if (!run) return
-    for (const star of this.stars) {
+    for (let index = 0; index < (run.enhanced ? this.stars.length : 59); index++) {
+      const star = this.stars[index]
       g.fillStyle(star.layer === 2 ? 0xb7bfff : 0x6b91c9, 0.2 + star.layer * 0.16)
       g.fillCircle(star.x, (star.y + this.skyTime * (7 + 15 * star.layer)) % HEIGHT, 0.56 + star.layer * 0.32)
     }
 
     for (const item of run.drops.items) {
       g.lineStyle(1, 0xcaffec, 0.85).fillStyle(0x51e7ac, 0.9)
-      polygon(g, item.x, item.y - 5, item.x + 4, item.y, item.x, item.y + 5, item.x - 4, item.y)
+      diamond(g, item.x, item.y, 4, 5)
     }
     for (const enemy of run.enemies) {
       const { x, y, radius: r } = enemy
@@ -62,7 +70,7 @@ export class FlightArt {
         g.restore()
       } else if (bullet.shape === Shape.Diamond) {
         g.lineStyle(1, 0xfff6ff, 0.7)
-        polygon(g, x, y - r - 1, x + r, y, x, y + r + 1, x - r, y)
+        diamond(g, x, y, r, r + 1)
       } else {
         g.fillCircle(x, y, r)
         g.fillStyle(0xfff6ff, 0.85).fillCircle(x, y, r * 0.45)
@@ -111,7 +119,12 @@ export class FlightArt {
   }
 }
 
-export function polygon(g: Graphics, x: number, y: number, ...points: number[]) {
+function diamond(g: Graphics, x: number, y: number, radiusX: number, radiusY: number) {
+  g.beginPath().moveTo(x, y - radiusY).lineTo(x + radiusX, y).lineTo(x, y + radiusY)
+    .lineTo(x - radiusX, y).closePath().fillPath().strokePath()
+}
+
+function polygon(g: Graphics, x: number, y: number, ...points: number[]) {
   g.beginPath().moveTo(x, y)
   for (let index = 0; index < points.length; index += 2) g.lineTo(points[index], points[index + 1])
   g.closePath().fillPath().strokePath()

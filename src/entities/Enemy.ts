@@ -15,7 +15,7 @@ export class Enemy {
     this.stats = ENEMIES[kind]
     this.hp = this.stats.hp
     this.x = lane
-    this.shotIn = kind === 'scout' ? 1.55 : 2.35
+    this.shotIn = this.stats.firstShot
   }
 
   move(dt: number) {

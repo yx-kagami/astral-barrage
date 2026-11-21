@@ -26,7 +26,7 @@ export class Run {
   readonly enemies: Enemy[] = []
   readonly effects: Effects
   readonly drops = new Drops()
-  readonly progression = new Progression()
+  readonly progression: Progression
   boss: Boss | null = null
   state: RunState = 'playing'
   time = 0
@@ -40,8 +40,9 @@ export class Run {
   private sector = 0
   private clearHostile = false
 
-  constructor(enhanced = true) {
+  constructor(readonly enhanced = true, random = Math.random) {
     this.effects = new Effects(enhanced)
+    this.progression = new Progression(random)
   }
 
   step(dt: number, input: FlightInput) {
@@ -154,13 +155,16 @@ export class Run {
       enemy.shotIn -= dt
       if (enemy.shotIn <= 0 && enemy.y < this.player.y - 35) {
         enemy.shotIn = enemy.stats.interval
-        const heading = aim(enemy, this.player)
-        if (enemy.kind === 'scout') {
-          spread(this.bullets, enemy, heading, this.sector > 1 ? 2 : 1, 0.13, 184, enemy.stats.color, Shape.Orb)
-        } else if (enemy.kind === 'scatter') {
-          spread(this.bullets, enemy, heading, 5 + this.sector * 2, 0.16, 146, enemy.stats.color)
+        const { pattern, color } = enemy.stats
+        if (pattern.kind === 'ring') {
+          ring(this.bullets, enemy, enemy.age * pattern.rotation, pattern.count + this.sector * pattern.perSector,
+            pattern.speed, color)
         } else {
-          ring(this.bullets, enemy, enemy.age * 0.53, 10 + this.sector * 3, 125, enemy.stats.color)
+          const count = pattern.kind === 'aimed'
+            ? pattern.count * (this.sector >= pattern.doubleFrom ? 2 : 1)
+            : pattern.count + this.sector * pattern.perSector
+          spread(this.bullets, enemy, aim(enemy, this.player), count, pattern.spread, pattern.speed, color,
+            pattern.kind === 'aimed' ? Shape.Orb : Shape.Diamond)
         }
       }
     }
