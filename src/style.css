@@ -21,3 +21,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: non
 }
 #screen, #interface { position: absolute; inset: 0; }
 #screen canvas { display: block; width: 100% !important; height: 100% !important; }
+#interface { pointer-events: none; }
+#interface button, .panel { pointer-events: auto; }
+[hidden] { display: none !important; }
+.hud, .controls { position: absolute; inset-inline: 0; display: flex; justify-content: space-between; padding: 0.8rem; font-weight: 700; }
+.controls { bottom: 0; }
+button { font: inherit; border: 1px solid #367683; color: #e5fdff; background: #15293c; border-radius: 7px; min-height: 46px; padding: 0.55em 1em; cursor: pointer; touch-action: none; }
+.panel { position: absolute; top: 34%; left: 7%; right: 7%; padding: 1.25rem; border: 1px solid #324778; background: #101627; text-align: center; border-radius: 14px; }
