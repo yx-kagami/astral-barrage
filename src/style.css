@@ -1,0 +1,23 @@
+:root {
+  color-scheme: dark;
+  color: #f3f5ff;
+  background: #080b19;
+  font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
+#app { height: 100%; display: grid; place-items: center; }
+#frame {
+  position: relative;
+  width: min(100vw, 46.2085dvh);
+  aspect-ratio: 390 / 844;
+  overflow: hidden;
+  isolation: isolate;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  padding: 0;
+}
+#screen, #interface { position: absolute; inset: 0; }
+#screen canvas { display: block; width: 100% !important; height: 100% !important; }

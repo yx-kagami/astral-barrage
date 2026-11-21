@@ -1,0 +1,23 @@
+{
+  "name": "astral-barrage",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "npm run check && vite build",
+    "preview": "vite preview",
+    "test:e2e": "playwright test"
+  },
+  "engines": { "node": ">=22.12.0" },
+  "dependencies": { "phaser": "4.2.1" },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.8",
+    "vitest": "^4.1.0"
+  }
+}
