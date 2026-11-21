@@ -35,3 +35,48 @@ it('autofires, destroys enemies, and eventually loses when idle', () => {
   expect(run.state).toBe('lost')
   expect(run.player.lives).toBe(0)
 })
+
+it('awards each grazing bullet once and never on a direct hit', () => {
+  const run = new Run()
+  const bullet = run.bullets.spawn(run.player.x + 14, run.player.y, 0, 0, 4, 0, Shape.Orb)!
+  for (let tick = 0; tick < 12; tick++) run.step(STEP, idle)
+  expect(run.grazes).toBe(1)
+  expect(run.charge).toBe(1)
+  bullet.x = run.player.x
+  run.step(STEP, idle)
+  expect(run.player.lives).toBe(2)
+  expect(run.grazes).toBe(1)
+})
+
+it('freezes simulation during pause and bombs recycle hostile projectiles', () => {
+  const run = new Run()
+  const hostile = run.bullets.spawn(20, 100, 0, 100, 4, 0, Shape.Orb)
+  run.state = 'paused'
+  run.step(STEP, idle)
+  expect(run.time).toBe(0)
+  expect(hostile?.x).toBe(20)
+  expect(run.bomb()).toBe(false)
+  run.state = 'playing'
+  expect(run.bomb()).toBe(true)
+  expect(run.bullets.active).toHaveLength(0)
+  expect(run.bombs).toBe(1)
+})
+
+it('spawns the boss on schedule, changes phases, and completes the run on its defeat', () => {
+  const run = new Run()
+  run.time = 180 - STEP / 2
+  run.step(STEP, idle)
+  const boss = run.boss!
+  expect(boss.phase).toBe(1)
+  boss.damage(boss.maxHp)
+  expect(boss.hp).toBe(boss.maxHp)
+  boss.update(3, run.bullets, run.player)
+  boss.damage(boss.maxHp * 0.51)
+  expect(boss.phase).toBe(2)
+  expect(boss.vulnerable).toBe(false)
+  boss.update(3, run.bullets, run.player)
+  run.bullets.spawn(boss.x, boss.y, 0, 0, 3, 0, Shape.Needle, true, boss.hp)
+  run.step(STEP, idle)
+  expect(run.state).toBe('won')
+  expect(run.score).toBe(10000)
+})

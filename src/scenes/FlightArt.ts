@@ -1,5 +1,6 @@
 import type Phaser from 'phaser'
 import { HEIGHT, WIDTH } from '../config/field'
+import type { Boss } from '../entities/Boss'
 import type { Player } from '../entities/Player'
 import { Shape } from '../systems/BulletManager'
 import type { Run } from '../systems/Run'
@@ -34,6 +35,16 @@ export class FlightArt {
       g.fillStyle(enemy.stats.color).fillCircle(x, y + 2, 3.5)
     }
 
+    if (run.boss && run.boss.hp) this.boss(run.boss)
+    for (const spark of run.effects.sparks) {
+      if (spark.life <= 0) continue
+      g.fillStyle(spark.color, Math.min(0.9, spark.life * 2)).fillRect(spark.x, spark.y, 2.5, 2.5)
+    }
+    if (run.effects.bombFlash > 0) {
+      const progress = 1 - run.effects.bombFlash / 0.52
+      g.lineStyle(3 * (1 - progress) + 1, 0xa6f6ff, 0.8 * (1 - progress))
+      g.strokeCircle(run.player.x, run.player.y, 20 + progress * 630)
+    }
     this.ship(run.player)
     for (const bullet of run.bullets.active) {
       const { x, y, radius: r } = bullet
@@ -48,6 +59,25 @@ export class FlightArt {
         g.fillStyle(0xfff6ff, 0.85).fillCircle(x, y, r * 0.45)
       }
     }
+  }
+
+  private boss(boss: Boss) {
+    const g = this.graphics
+    const color = boss.phase === 1 ? 0x9f9cff : 0xff85df
+    g.save().translateCanvas(boss.x, boss.y)
+    g.lineStyle(2, color, 0.84).fillStyle(0x241b45)
+    polygon(g, -86, 14, -74, -37, -47, -20, -21, -35, 0, -52, 21, -35,
+      47, -20, 74, -37, 86, 14, 62, 5, 35, 30, 0, 48, -35, 30, -62, 5)
+    g.fillStyle(0x382e63).lineStyle(1, color, 0.64)
+    for (const side of [-1, 1]) {
+      polygon(g, side * 74, -28, side * 60, -10, side * 32, 26, side * 43, -15)
+      g.fillStyle(color, 0.72).fillRect(side * 58 - 3, -5, 6, 13)
+      g.fillStyle(0x382e63)
+    }
+    g.fillStyle(color, 0.24).fillCircle(0, 1, 16 + Math.sin(this.skyTime * 7) * 2)
+    g.fillStyle(color).fillCircle(0, 1, 9)
+    g.fillStyle(0xffefff).fillCircle(0, 1, 4)
+    g.restore()
   }
 
   private ship(player: Player) {

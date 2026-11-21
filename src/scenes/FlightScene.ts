@@ -12,6 +12,7 @@ export class FlightScene extends Phaser.Scene {
   private controls!: Controls
   private ui!: FlightUI
   private art!: FlightArt
+  private listeners!: AbortController
 
   constructor() {
     super('flight')
@@ -23,7 +24,18 @@ export class FlightScene extends Phaser.Scene {
     this.ui = new FlightUI(document.querySelector('#interface')!)
     this.controls.bindFocus(this.ui.focus)
     this.ui.start.onclick = () => this.start()
+    this.controls.onPause = () => this.togglePause()
+    this.controls.onBomb = () => this.run?.bomb()
+    this.listeners = new AbortController()
+    const options = { signal: this.listeners.signal }
+    document.querySelector('#bomb')!.addEventListener('click', this.controls.onBomb, options)
+    document.querySelector('#pause')!.addEventListener('click', this.controls.onPause, options)
+    document.querySelector('#resume')!.addEventListener('click', this.controls.onPause, options)
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this.run?.state === 'playing') this.togglePause()
+    }, options)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.listeners.abort()
       this.controls.destroy()
       this.run?.bullets.clear()
       this.run = null
@@ -38,6 +50,21 @@ export class FlightScene extends Phaser.Scene {
     this.hudIn = 0
     this.controls.reset()
     this.ui.begin()
+    this.ui.hud(this.run)
+  }
+
+  private togglePause() {
+    if (!this.run) return
+    if (this.run.state !== 'playing' && this.run.state !== 'paused') return
+    this.accumulator = 0
+    this.controls.reset()
+    if (this.run.state === 'playing') {
+      this.run.state = 'paused'
+      this.ui.pause()
+    } else {
+      this.run.state = 'playing'
+      this.ui.begin()
+    }
   }
 
   update(_time: number, ms: number) {
@@ -52,12 +79,12 @@ export class FlightScene extends Phaser.Scene {
         this.accumulator -= STEP
       }
       this.hudIn -= dt
-      if (this.hudIn <= 0 || !run.player.lives) {
-        this.ui.hud(run.player.lives, run.score, run.time)
+      if (this.hudIn <= 0 || run.state !== 'playing') {
+        this.ui.hud(run)
         this.hudIn = 0.1
       }
-      if (!run.player.lives) this.ui.lost(run.score)
     }
+    if (run && (run.state === 'lost' || run.state === 'won') && this.ui.panel.hidden) this.ui.result(run)
     this.art.draw(dt, run)
   }
 }
