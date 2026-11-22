@@ -2,6 +2,16 @@
 
 原创单人竖屏弹幕射击 Roguelite。驾驶星舰躲避弹幕、收集经验并在单局内强化火力。战斗计时到 03:00 时，机械星舰「晦星方舟」入场。击败两阶段 Boss 即可通关，单局目标时长约 4–6 分钟。
 
+## 在线试玩
+
+发布目标为 GitHub Pages 的 [星幕计划：弹幕远征](https://yx-kagami.github.io/astral-barrage/)。从 Safari 或 Chrome 打开，保持竖屏并点按「开始游戏」。首次发布状态和实际网址可在仓库的 **Settings → Pages** 查看。
+
+## 手机安装
+
+- **iPhone Safari**：打开游戏网址，点按「分享」，向下滚动并选择「添加到主屏幕」。如果看到「作为网页 App 打开」，请保持开启，再点按「添加」。之后可从主屏幕图标打开独立窗口。
+- **Android Chrome**：打开游戏网址，点按右上角「⋮」，选择「安装应用」或「添加到主屏幕 → 安装」，再确认。
+- 安装后先通过主屏幕图标联网打开游戏并开始一局，让当前窗口完成离线缓存。退出后打开飞行模式，再从主屏幕图标启动并进入战斗。最高分和最快通关记录保存在当前浏览器或已安装应用的数据中。
+
 ## 玩法
 
 - 主炮自动向上射击。击毁敌机掉落绿色经验晶体，靠近后会自动吸附。
@@ -19,13 +29,15 @@
 
 切换到后台会自动暂停。手机横屏时会提示转回竖屏。
 
-## 本地开发和测试
+## 本地开发
 
 使用 Node.js 22.12+ 或 24 LTS，以及 npm。
 
 ```sh
 npm ci
 npm run dev
+# 在另一个终端执行以下验证命令
+npm run check
 npm test
 npm run build
 npx playwright install chromium
@@ -34,7 +46,7 @@ npm run test:e2e
 
 `npm run check` 可单独做类型检查。Playwright 启动生产预览，在 `/astral-barrage/` 下运行测试，以覆盖项目站点的真实路径结构。安装浏览器时可加 `--with-deps` 为 Linux 准备系统库。若已有 Chromium，可通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指向可执行文件。安装 WebKit 后，可使用 `PLAYWRIGHT_WEBKIT=1 npm run test:e2e` 运行额外的 WebKit 冒烟测试。
 
-Vitest 验证生命值、碰撞、回收、擦弹、炸弹、强化上限、Boss 阶段、胜负状态，以及通过常规移动和武器完成的整局模拟。Playwright 覆盖菜单、键盘、触控模拟、暂停、失败重开、存档与离线启动。
+Vitest 验证生命值、碰撞、回收、擦弹、炸弹、强化上限、Boss 阶段、胜负状态、最佳通关记录与整局模拟。Playwright 覆盖菜单、键盘、触控模拟、首次触摸后的 Web Audio、暂停、失败重开、存档与离线启动。
 
 ## 架构
 
@@ -50,14 +62,23 @@ Vitest 验证生命值、碰撞、回收、擦弹、炸弹、强化上限、Boss
 
 战斗以 390×844 为逻辑尺寸，按 120 Hz 固定时间步推进，由 Phaser Canvas 渲染。HTML 界面独立缩放并适应安全区域。低画质降低星点和粒子数量。所有图像与音频在本项目中绘制或合成，运行时没有外部资源请求。
 
-## GitHub Pages 部署
+## 自动部署
 
-1. 将本仓库连接到 GitHub 的项目仓库，将功能分支推送到 `origin`。对于空的 GitHub 仓库，可用首阶段提交作为 `main` 基线，再将功能分支通过 PR 合并到 `main`。
-2. 在仓库 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。
-3. `main` 更新时，工作流会通过 `npm ci` 安装依赖，执行 Vitest、TypeScript 检查、生产构建和 Chromium 冒烟测试，然后发布 `dist`。
-4. 在 Actions 的部署环境或 **Settings → Pages** 复制实际的公开地址。
+### 首次启用
 
-Vite 使用相对资源路径。Manifest 的起始地址、PNG 图标和 Service Worker 作用域均相对于部署目录。构建按产物内容生成离线缓存版本，只有成功缓存完整新版本后才启用新 Worker。打开游戏并完成首次缓存后，即可离线重新打开。
+1. 将本地 `main` 的首阶段提交和已验证的开发分支推送到 [GitHub 仓库](https://github.com/yx-kagami/astral-barrage)。确认默认分支为 `main`。
+2. 在 iPhone Safari 登录仓库所有者账号，打开仓库的 **Settings → Pages**。如果移动页面隐藏了 **Settings**，请在 Safari 地址栏的页面菜单中选择「请求桌面网站」，然后重新打开仓库设置。
+3. 在 **Build and deployment → Source** 选择 **GitHub Actions**。创建从 `feat/vertical-shooter` 到 `main` 的 PR。验证通过后使用 **Create a merge commit**，保留各阶段提交。
+4. 打开 **Actions → Test and deploy GitHub Pages**，等待 `test-build` 和 `deploy` 成功。若设置 Source 前已经合并，在该工作流选择 **Run workflow → main**。从 **Settings → Pages** 打开已发布地址，确认菜单和开局均正常。
+
+### 日常更新
+
+1. 在 Codex 中基于最新的 `main` 创建功能分支并修改游戏。
+2. 执行 `npm ci`、`npm run check`、`npm test`、`npm run build` 和 `npm run test:e2e`，再用 Conventional Commits 格式提交。
+3. 推送功能分支并向 `main` 发起 PR。检查 Actions 后使用合并提交保留分支历史。
+4. `main` 更新时自动执行测试、类型检查、构建及 Chromium 冒烟测试，随后将生成的 `dist` 发布到 Pages。部署完成后打开 HTTPS 游戏地址，验证本次改动。功能分支和 PR 只运行验证。
+
+Vite 使用相对资源路径，部署目录为 `/astral-barrage/`。Manifest 的起始地址、PNG 图标和 Service Worker 作用域均相对于部署目录。只有成功缓存完整新版本后，新 Worker 才启用。已打开的对局可继续进行，下次打开或刷新时使用新版本。
 
 ## 手机验收
 

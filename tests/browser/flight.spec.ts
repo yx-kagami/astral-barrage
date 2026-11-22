@@ -104,6 +104,26 @@ test('restores settings on reload', async ({ page }) => {
   await expect(page.getByLabel('画面质量')).toHaveValue('low')
 })
 
+test('unlocks and schedules Web Audio after a touch starts the game', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ ...devices['iPhone 13'], baseURL })
+  try {
+    const page = await context.newPage()
+    await page.addInitScript(() => {
+      const nativeStart = OscillatorNode.prototype.start
+      OscillatorNode.prototype.start = function (when?: number) {
+        nativeStart.call(this, when)
+        if (this.context.state === 'running') document.documentElement.dataset.audioPlaying = 'true'
+      }
+    })
+    await page.goto('./')
+    await expect(page.locator('html')).not.toHaveAttribute('data-audio-playing', 'true')
+    await page.getByRole('button', { name: '开始游戏' }).tap()
+    await expect(page.locator('html')).toHaveAttribute('data-audio-playing', 'true', { timeout: 12_000 })
+  } finally {
+    await context.close()
+  }
+})
+
 for (const device of ['iPhone 13', 'Pixel 7'] as const) {
   test(`fits the ${device} viewport and keeps touch controls reachable`, async ({ browser }, testInfo) => {
     const { defaultBrowserType, ...phone } = devices[device]
@@ -175,9 +195,14 @@ test('loads the production game under a repository path and starts offline', asy
   const manifest = await page.request.get('./manifest.webmanifest')
   expect(manifest.ok()).toBeTruthy()
   const data = await manifest.json()
-  expect(data.start_url).toBe('./')
+  expect(data).toMatchObject({ start_url: './', scope: './', display: 'standalone', orientation: 'portrait' })
+  const touchIcon = await page.locator('link[rel="apple-touch-icon"]').getAttribute('href')
+  expect(touchIcon).toBe('./icons/apple-touch-icon.png')
+  expect((await page.request.get(touchIcon!)).ok()).toBeTruthy()
   for (const icon of data.icons) expect((await page.request.get(`./${icon.src}`)).ok()).toBeTruthy()
   await page.waitForFunction(() => navigator.serviceWorker.controller?.scriptURL.endsWith('/astral-barrage/sw.js'))
+  const workerScope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope)
+  expect(new URL(workerScope).pathname).toBe('/astral-barrage/')
   await context.setOffline(true)
   await page.reload()
   await page.getByRole('button', { name: '开始游戏' }).click()
