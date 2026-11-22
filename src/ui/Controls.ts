@@ -1,7 +1,7 @@
 import { WIDTH } from '../config/field'
 import type { FlightInput } from '../entities/Player'
 
-const flightKeys = new Set(['KeyA', 'KeyD', 'KeyW', 'KeyS', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'ShiftLeft', 'ShiftRight', 'KeyX', 'Escape'])
+const flightKeys = new Set(['KeyA', 'KeyD', 'KeyW', 'KeyS', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'ShiftLeft', 'ShiftRight', 'KeyX', 'KeyC', 'Escape'])
 
 export class Controls {
   private readonly keys = new Set<string>()
@@ -16,6 +16,7 @@ export class Controls {
   private readonly input: FlightInput = { x: 0, y: 0, dragX: 0, dragY: 0, focus: false }
   onPause = () => {}
   onBomb = () => {}
+  onSkill = () => {}
 
   constructor(private readonly surface: HTMLElement) {
     const options = { signal: this.listeners.signal }
@@ -25,6 +26,7 @@ export class Controls {
       this.keys.add(event.code)
       if (!event.repeat && event.code === 'Escape') this.onPause()
       if (!event.repeat && event.code === 'KeyX') this.onBomb()
+      if (!event.repeat && event.code === 'KeyC') this.onSkill()
     }, options)
     window.addEventListener('keyup', (event) => this.keys.delete(event.code), options)
     window.addEventListener('blur', () => this.reset(), options)

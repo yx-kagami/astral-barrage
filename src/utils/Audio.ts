@@ -1,6 +1,6 @@
-type Cue = 'start' | 'blast' | 'hit' | 'destroy' | 'level' | 'won' | 'lost'
+type Cue = 'start' | 'skill' | 'blast' | 'hit' | 'destroy' | 'level' | 'won' | 'lost'
 const pitches: Record<Cue, number[]> = {
-  start: [220, 329.63, 440], blast: [154, 92, 55], hit: [185, 83], destroy: [240, 128],
+  start: [220, 329.63, 440], skill: [246.94, 369.99, 554.37], blast: [154, 92, 55], hit: [185, 83], destroy: [240, 128],
   level: [329.63, 493.88, 659.25], won: [261.63, 392, 523.25, 659.25], lost: [293.66, 220, 146.83],
 }
 const harmony = [[110, 164.81, 261.63], [82.41, 123.47, 196], [98, 146.83, 220], [73.42, 110, 174.61]]

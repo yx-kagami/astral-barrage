@@ -1,0 +1,150 @@
+.cover-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.cover-tools #hangar-button { color: #a9ebfc; background: #151d36cd; font-size: 13px; }
+.cover-portrait {
+  position: absolute;
+  inset: 32% 7% auto;
+  width: 86%;
+  height: 40%;
+  object-fit: contain;
+  object-position: center bottom;
+  mask-image: linear-gradient(#000 73%, transparent 100%);
+}
+
+#hangar-panel {
+  --hangar-accent: #9ef5ff;
+  display: grid;
+  place-items: stretch;
+  grid-template-rows: auto minmax(116px, 1fr) auto auto auto auto auto;
+  gap: clamp(6px, 2.15cqw, 10px);
+  padding: clamp(10px, 4.5cqw, 19px);
+  background: radial-gradient(ellipse at 50% 26%, #29244a 0%, #10142a 49%, #0a0e20 86%);
+}
+.hangar-heading { display: flex; align-items: center; justify-content: space-between; }
+.hangar-heading h2 { margin: 0; font-size: clamp(24px, 8.4cqw, 35px); letter-spacing: 0.12em; }
+.hangar-heading button { font-size: 12px; }
+
+.hangar-stage {
+  isolation: isolate;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: end center;
+  border: 1px solid #9a9dff48;
+  border-radius: 13px;
+  background: radial-gradient(ellipse at 50% 54%, #394377af, #171c39 67%, #121630);
+}
+.hangar-stage::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 56% 0 0;
+  pointer-events: none;
+  background: linear-gradient(transparent, #0b1024e8 85%);
+}
+.hangar-orbit {
+  position: absolute;
+  inset: 10% 15%;
+  margin: auto;
+  max-width: 290px;
+  border: 1px solid #a5b3ff49;
+  border-radius: 50%;
+  rotate: -18deg;
+  box-shadow: 0 0 0 11px #a5b3ff0b, 0 0 0 24px #a5b3ff12;
+}
+.hangar-portrait {
+  position: absolute;
+  inset: 2% 1% 0;
+  width: 98%;
+  height: 98%;
+  object-fit: contain;
+  object-position: center bottom;
+  pointer-events: none;
+}
+.hangar-stage[data-pilot="vector"] .hangar-portrait {
+  inset: 0 15% 9%;
+  width: 70%;
+  height: 91%;
+  scale: 1.13;
+  object-position: center;
+}
+.hangar-sprite {
+  position: absolute;
+  z-index: 3;
+  right: 9px;
+  bottom: 9px;
+  width: clamp(38px, 15cqw, 64px);
+  aspect-ratio: 1;
+  object-fit: contain;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid #b4c4ff5e;
+  background: #10172ce8;
+}
+.hangar-caption { z-index: 3; justify-self: start; margin: 0 0 9px 14px; }
+.hangar-caption .section-label { color: var(--hangar-accent); white-space: nowrap; }
+.hangar-caption h3 {
+  margin: 0;
+  font-size: clamp(22px, 8cqw, 36px);
+  letter-spacing: 0.09em;
+  text-shadow: 0 2px 14px #050817;
+}
+
+.hangar-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  text-align: center;
+  margin: 0;
+  padding: 6px 0;
+  border: 1px solid #818aec3d;
+  border-radius: 8px;
+  background: #141b35;
+}
+.hangar-stats div + div { border-left: 1px solid #818aec2f; }
+.hangar-stats dt { font-size: 10px; color: #b4c1e0; white-space: nowrap; }
+.hangar-stats dd { margin: 2px 0 0; font: 750 clamp(13px, 5.5cqw, 19px) var(--mono); }
+.hangar-skill {
+  min-height: 58px;
+  border-left: 2px solid var(--hangar-accent);
+  padding: 5px 8px 5px 10px;
+  background: #191c38;
+}
+.hangar-skill strong { font-size: 13px; color: var(--hangar-accent); }
+.hangar-skill p, .hangar-note { margin: 2px 0 0; font-size: 11px; line-height: 1.42; color: #bec8e7; }
+.hangar-note { text-align: center; }
+
+.hangar-tabs, .hangar-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.hangar-options:not(.hangar-skins) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.hangar-tabs button, .hangar-options button {
+  min-width: 0;
+  padding: 3px 5px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.hangar-tabs button { background: #121830; }
+.hangar-options button { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.hangar-options button img { width: min(30px, 8.5cqw); height: 30px; object-fit: contain; }
+.hangar-skins i {
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  background: var(--swatch);
+  box-shadow: 0 0 13px var(--swatch);
+}
+.hangar-tabs button[aria-pressed="true"], .hangar-options button[aria-pressed="true"] {
+  border-color: var(--hangar-accent);
+  background: #253451;
+  color: var(--hangar-accent);
+}
+#skill {
+  background: #25234c;
+  border-color: #b6abff83;
+  color: #efeaff;
+}
+#skill strong { font: 650 0.85em var(--mono); }
+.controls.has-skill { gap: 4px; padding-inline: 2.55cqw; }
+.controls.has-skill button { padding-inline: 1.75cqw; min-width: 44px; }
+.controls.has-skill .bomb-meter { width: min(19cqw, 65px); min-width: 0; }

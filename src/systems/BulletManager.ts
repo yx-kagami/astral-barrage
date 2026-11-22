@@ -6,6 +6,7 @@ export interface Target {
   y: number
   radius: number
 }
+export type Weapon = 'main' | 'wing' | 'missile'
 export interface Bullet extends Target {
   vx: number
   vy: number
@@ -16,6 +17,7 @@ export interface Bullet extends Target {
   grazed: boolean
   pierce: number
   hits: Target[]
+  weapon?: Weapon
 }
 
 export function overlaps(a: Target, b: Target, margin = 0) {
@@ -29,7 +31,7 @@ export class BulletManager {
   private readonly free: Bullet[] = []
 
   spawn(x: number, y: number, angle: number, speed: number, radius: number, color: number,
-    shape: Shape, friendly = false, damage = 0, pierce = 0) {
+    shape: Shape, friendly = false, damage = 0, pierce = 0, weapon?: Weapon) {
     if (this.active.length >= (friendly ? 1190 : 1080)) return
     const bullet = this.free.pop() ?? { hits: [] } as unknown as Bullet
     bullet.x = x
@@ -43,6 +45,7 @@ export class BulletManager {
     bullet.damage = damage
     bullet.grazed = false
     bullet.pierce = pierce
+    bullet.weapon = weapon
     bullet.hits.length = 0
     this.active.push(bullet)
     return bullet
@@ -64,6 +67,13 @@ export class BulletManager {
     if (index < this.active.length) this.active[index] = last
     bullet.hits.length = 0
     this.free.push(bullet)
+  }
+
+  clearNear(target: Target, radius: number) {
+    for (let index = this.active.length - 1; index >= 0; index--) {
+      const bullet = this.active[index]
+      if (!bullet.friendly && overlaps(bullet, target, radius - target.radius)) this.recycle(index)
+    }
   }
 
   clear(hostileOnly = false) {

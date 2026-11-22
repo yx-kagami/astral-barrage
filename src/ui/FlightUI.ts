@@ -1,3 +1,9 @@
+import { DEFAULT_AIRCRAFT, AIRCRAFT } from '../config/aircraft'
+import type { AircraftId } from '../config/aircraft'
+import { SKINS } from '../config/appearance'
+import type { SkinId } from '../config/appearance'
+import type { FlightAssets } from '../art/FlightAssets'
+import { HangarUI } from './HangarUI'
 import { BOMB_CHARGE } from '../config/mission'
 import { UPGRADES } from '../config/upgrades'
 import type { Upgrade } from '../config/upgrades'
@@ -20,9 +26,12 @@ export class FlightUI {
   private readonly level: HTMLElement
   private readonly controls: HTMLElement
   private readonly panels: HTMLElement[]
+  private readonly hangar: HangarUI
+  private readonly skillButton: HTMLButtonElement
+  private readonly skillValue: HTMLElement
   readonly focus: HTMLButtonElement
 
-  constructor(private readonly root: HTMLElement) {
+  constructor(private readonly root: HTMLElement, private readonly assets: FlightAssets) {
     root.innerHTML = `
       <header class="hud" hidden>
         <div class="hud-row">
@@ -42,16 +51,21 @@ export class FlightUI {
           <h1 id="menu-title">星幕计划<span>弹幕远征</span></h1>
           <p class="subtitle" lang="en">ASTRAL BARRAGE</p>
         </div>
+        <img class="cover-portrait" alt="" hidden>
         <div class="cover-actions">
           <div class="records">
             <div><span>最高分</span><strong id="menu-score">000000</strong></div>
             <div><span>最快通关</span><strong id="menu-clear">—</strong></div>
           </div>
           <button type="button" id="start" class="primary"><span>开始游戏</span><b aria-hidden="true">→</b></button>
-          <button type="button" id="settings-button" class="ghost"><span aria-hidden="true">⚙</span> 游戏设置</button>
+          <div class="cover-tools">
+            <button type="button" id="hangar-button" class="ghost">机库</button>
+            <button type="button" id="settings-button" class="ghost"><span aria-hidden="true">⚙</span> 游戏设置</button>
+          </div>
           <p class="touch-guide">单指拖动｜按住低速键精确移动</p>
         </div>
       </section>
+      <section id="hangar-panel" class="overlay hangar" role="dialog" aria-modal="true" aria-labelledby="hangar-title" hidden></section>
       <section id="pause-panel" class="overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title" hidden>
         <div class="card">
           <h2 id="pause-title">远征暂停</h2>
@@ -91,6 +105,7 @@ export class FlightUI {
       <footer class="controls" hidden>
         <button type="button" id="focus"><span aria-hidden="true">⊙</span> 低速</button>
         <div class="bomb-meter"><span>擦弹充能</span><progress id="charge" max="${BOMB_CHARGE}" value="0" aria-label="炸弹能量"></progress></div>
+        <button type="button" id="skill" hidden title="技能（C）">技能 <strong id="skill-value"></strong></button>
         <button type="button" id="bomb"><span aria-hidden="true">✦</span> 炸弹 <strong id="bombs">2</strong></button>
       </footer>
     `
@@ -107,20 +122,28 @@ export class FlightUI {
     this.level = this.get('#level')
     this.controls = this.get('.controls')
     this.focus = this.get('#focus')
+    this.hangar = new HangarUI(this.get('#hangar-panel'), assets)
+    this.skillButton = this.get('#skill')
+    this.skillValue = this.get('#skill-value')
     this.panels = [...root.querySelectorAll('section')]
   }
 
   bind(actions: {
     start: () => void; pause: () => void; bomb: () => void; menu: () => void;
     choose: (id: Upgrade) => void; settings: () => void;
+    hangar: () => void; skill: () => void;
+    aircraft: (id: AircraftId) => void; skin: (id: SkinId) => void;
     sound: (enabled: boolean) => void; quality: (quality: Profile['quality']) => void;
   }) {
     this.click('#start, [data-restart]', actions.start)
     this.click('#pause, #resume', actions.pause)
     this.click('#bomb', actions.bomb)
+    this.click('#skill', actions.skill)
+    this.click('#hangar-button', actions.hangar)
     this.click('[data-menu]', actions.menu)
     this.click('#settings-button', actions.settings)
     const options = { signal: this.listeners.signal }
+    this.hangar.bind(actions.aircraft, actions.skin, options)
     document.querySelector('#desktop-settings')?.addEventListener('click', actions.settings, options)
     this.get('#upgrade-options').addEventListener('click', (event) => {
       const option = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-upgrade]')
@@ -137,6 +160,7 @@ export class FlightUI {
       const dialog = this.panels.find((panel) => !panel.hidden && panel.classList.contains('overlay'))
       if (!dialog) return
       const fields = [...dialog.querySelectorAll<HTMLElement>('button, input, select')]
+        .filter((field) => !field.closest('[hidden]') && !field.matches(':disabled'))
       const first = fields[0]
       const last = fields.at(-1)
       const active = document.activeElement
@@ -149,9 +173,23 @@ export class FlightUI {
   menu(profile: Profile, focus = true) {
     this.get('#menu-score').textContent = displayScore(profile.highScore)
     this.get('#menu-clear').textContent = profile.bestClear ? formatTime(profile.bestClear.time) : '—'
+    const portrait = this.get<HTMLImageElement>('.cover-portrait')
+    portrait.hidden = profile.aircraft === DEFAULT_AIRCRAFT
+    if (!portrait.hidden) {
+      portrait.src = this.assets.preview(profile.aircraft, profile.skin).portrait
+      portrait.style.filter = SKINS[profile.skin].portraitTone
+    }
+    this.get('#hangar-button').title = `机库 · ${AIRCRAFT[profile.aircraft].name}`
     this.updateRecord(profile)
     this.show('menu', focus ? '#start' : undefined)
   }
+
+  openHangar(profile: Profile) {
+    this.hangar.update(profile)
+    this.show('hangar-panel', '#hangar-panel [data-mode][aria-pressed="true"]')
+  }
+
+  updateHangar(profile: Profile) { this.hangar.update(profile) }
 
   settings(profile: Profile) {
     this.get<HTMLInputElement>('#sound').checked = profile.sound
@@ -170,6 +208,14 @@ export class FlightUI {
     this.timer.textContent = formatTime(run.time)
     this.bombs.textContent = String(run.bombs)
     this.get<HTMLButtonElement>('#bomb').disabled = run.bombs === 0
+    const skill = run.aircraft.skill
+    this.skillButton.hidden = !skill
+    if (skill) {
+      this.skillButton.disabled = run.skillCooldown > 0
+      this.skillButton.setAttribute('aria-label', `技能：${skill.name}`)
+      this.skillValue.textContent = run.skillCooldown > 0 ? `${Math.ceil(run.skillCooldown)}s` : '就绪'
+    }
+    this.controls.classList.toggle('has-skill', Boolean(skill))
     this.charge.value = run.charge
     this.level.textContent = `Lv. ${run.progression.level}`
     this.xp.max = run.progression.threshold
@@ -210,7 +256,7 @@ export class FlightUI {
 
   private show(id?: string, focus?: string) {
     for (const panel of this.panels) panel.hidden = panel.id !== id
-    this.hudBar.hidden = id === 'menu' || id === 'settings-panel'
+    this.hudBar.hidden = id === 'menu' || id === 'settings-panel' || id === 'hangar-panel'
     if (this.hudBar.hidden) this.bossBar.hidden = true
     this.controls.hidden = Boolean(id)
     this.get<HTMLButtonElement>('#pause').disabled = Boolean(id)

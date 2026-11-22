@@ -1,6 +1,6 @@
 import { HEIGHT, WIDTH } from '../config/field'
 
-export function paintSky(ctx: CanvasRenderingContext2D, cover: boolean) {
+export function paintSky(ctx: CanvasRenderingContext2D, cover: boolean, ship = true) {
   ctx.fillStyle = '#080a17'
   ctx.fillRect(0, 0, WIDTH, HEIGHT)
   glow(ctx, 290, 340, 362, cover ? 'rgba(61,36,125,.69)' : 'rgba(36,25,71,.27)')
@@ -24,7 +24,7 @@ export function paintSky(ctx: CanvasRenderingContext2D, cover: boolean) {
   if (cover) {
     planet(ctx)
     orbit(ctx)
-    heroShip(ctx)
+    if (ship) heroShip(ctx)
   }
 }
 

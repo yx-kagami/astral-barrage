@@ -1,3 +1,5 @@
+import { AIRCRAFT, DEFAULT_AIRCRAFT } from '../config/aircraft'
+import type { AircraftId } from '../config/aircraft'
 import type { Upgrade } from '../config/upgrades'
 import { HEIGHT } from '../config/field'
 import { BOMB_CHARGE, BOSS, GRAZE_MARGIN, MAX_BOMBS, WAVE_LANES, WAVE_SECTORS } from '../config/mission'
@@ -21,7 +23,8 @@ export function graze(bullet: Bullet, player: Player) {
 }
 
 export class Run {
-  readonly player = new Player()
+  readonly player: Player
+  readonly aircraft
   readonly bullets = new BulletManager()
   readonly enemies: Enemy[] = []
   readonly effects: Effects
@@ -33,22 +36,29 @@ export class Run {
   score = 0
   kills = 0
   grazes = 0
-  bombs = 2
+  bombs: number
+  skillCooldown = 0
+  skillActive = 0
   charge = 0
   private spawnIn = 0.55
   private wave = 0
   private sector = 0
   private clearHostile = false
 
-  constructor(readonly enhanced = true, random = Math.random) {
+  constructor(readonly enhanced = true, random = Math.random, readonly aircraftId: AircraftId = DEFAULT_AIRCRAFT) {
+    this.aircraft = AIRCRAFT[aircraftId]
+    this.player = new Player(this.aircraft.stats)
+    this.bombs = this.aircraft.stats.bombs
     this.effects = new Effects(enhanced)
-    this.progression = new Progression(random)
+    this.progression = new Progression(random, this.aircraft.stats)
   }
 
   step(dt: number, input: FlightInput) {
     if (this.state !== 'playing') return
     this.time += dt
     this.effects.update(dt)
+    this.skillCooldown = Math.max(0, this.skillCooldown - dt)
+    this.skillActive = Math.max(0, this.skillActive - dt)
     this.player.move(dt, input)
     this.fire(dt)
 
@@ -80,21 +90,24 @@ export class Run {
     const { player, progression } = this
     player.fireCooldown -= dt
     if (player.fireCooldown <= 0) {
-      player.fireCooldown += progression.interval
+      const skill = this.aircraft.skill
+      const barrage = this.skillActive > 0 && skill?.kind === 'barrage' ? skill : null
+      player.fireCooldown += progression.interval * (barrage?.rate ?? 1)
+      const pierce = progression.piercing + (barrage?.pierce ?? 0)
       const twin = progression.ranks.twin > 0
       const damage = progression.mainDamage * progression.twinFactor
       const heading = -Math.PI / 2
-      this.bullets.spawn(player.x - (twin ? 7 : 0), player.y - 15, heading, 680, 2.5, 0x82efff,
-        Shape.Needle, true, damage, progression.piercing)
-      if (twin) this.bullets.spawn(player.x + 7, player.y - 15, heading, 680, 2.5, 0x82efff,
-        Shape.Needle, true, damage, progression.piercing)
+      this.bullets.spawn(player.x - (twin ? 7 : 0), player.y - 15, heading, 680, 2.5, 0,
+        Shape.Needle, true, damage, pierce, 'main')
+      if (twin) this.bullets.spawn(player.x + 7, player.y - 15, heading, 680, 2.5, 0,
+        Shape.Needle, true, damage, pierce, 'main')
       if (progression.ranks.wing) {
-        this.bullets.spawn(player.x - 15, player.y, heading - 0.24, 570, 2, 0xbbadff, Shape.Needle, true, progression.wingDamage)
-        this.bullets.spawn(player.x + 15, player.y, heading + 0.24, 570, 2, 0xbbadff, Shape.Needle, true, progression.wingDamage)
+        this.bullets.spawn(player.x - 15, player.y, heading - 0.24, 570, 2, 0, Shape.Needle, true, progression.wingDamage, 0, 'wing')
+        this.bullets.spawn(player.x + 15, player.y, heading + 0.24, 570, 2, 0, Shape.Needle, true, progression.wingDamage, 0, 'wing')
       }
     }
-    if (progression.missileDue(dt)) this.bullets.spawn(player.x, player.y - 14, -Math.PI / 2, 330, 3.5, 0x7effc2,
-      Shape.Missile, true, progression.missileDamage)
+    if (progression.missileDue(dt)) this.bullets.spawn(player.x, player.y - 14, -Math.PI / 2, 330, 3.5, 0,
+      Shape.Missile, true, progression.missileDamage, 0, 'missile')
   }
 
   private steerMissiles(dt: number) {
@@ -119,6 +132,30 @@ export class Run {
       bullet.vx = 330 * Math.cos(next)
       bullet.vy = 330 * Math.sin(next)
     }
+  }
+
+  activateSkill() {
+    const skill = this.aircraft.skill
+    if (this.state !== 'playing' || !skill || this.skillCooldown > 0) return false
+    this.skillCooldown = skill.cooldown
+    if (skill.kind === 'barrage') {
+      this.skillActive = skill.duration
+      this.player.fireCooldown = 0
+    } else {
+      const { player } = this
+      this.bullets.clearNear(player, skill.radius)
+      player.invulnerable = Math.max(player.invulnerable, skill.invulnerability)
+      this.effects.pulse = skill.invulnerability
+      for (let index = this.enemies.length - 1; index >= 0; index--) {
+        if (overlaps(player, this.enemies[index], skill.radius - player.radius)) this.damageEnemy(index, skill.damage)
+      }
+      if (this.boss && overlaps(player, this.boss, skill.radius - player.radius)) this.damageBoss(skill.damage)
+    }
+    if (this.clearHostile || this.boss?.hp === 0) {
+      this.bullets.clear(true)
+      this.clearHostile = false
+    }
+    return true
   }
 
   bomb() {

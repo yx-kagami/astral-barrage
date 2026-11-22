@@ -1,3 +1,5 @@
+import { AIRCRAFT, DEFAULT_AIRCRAFT } from '../config/aircraft'
+import type { AircraftStats } from '../config/aircraft'
 import { UPGRADES, UPGRADE_IDS } from '../config/upgrades'
 import type { Upgrade } from '../config/upgrades'
 import type { Player } from '../entities/Player'
@@ -11,12 +13,13 @@ export class Progression {
   choices: Upgrade[] = []
   private missileTime = 0
 
-  constructor(private readonly random = Math.random) {}
+  constructor(private readonly random = Math.random,
+    private readonly stats: AircraftStats = AIRCRAFT[DEFAULT_AIRCRAFT].stats) {}
 
   get threshold() { return 9 + (this.level - 1) * 4 }
   get capped() { return this.level >= LEVEL_LIMIT }
-  get mainDamage() { return 8 + this.ranks.damage * UPGRADES.damage.value }
-  get interval() { return 0.15 - this.ranks.rate * UPGRADES.rate.value }
+  get mainDamage() { return this.stats.damage + this.ranks.damage * UPGRADES.damage.value }
+  get interval() { return this.stats.interval - this.ranks.rate * UPGRADES.rate.value }
   get twinFactor() { return this.ranks.twin ? UPGRADES.twin.value : 1 }
   get piercing() { return this.ranks.pierce * UPGRADES.pierce.value }
   get wingDamage() { return 3 + this.ranks.wing * UPGRADES.wing.value }
@@ -43,7 +46,7 @@ export class Progression {
       player.maxLives += UPGRADES.hull.value
       player.lives += UPGRADES.hull.value
     }
-    if (id === 'speed') player.speed = 266 * (1 + this.ranks.speed * UPGRADES.speed.value)
+    if (id === 'speed') player.increaseSpeed(1 + this.ranks.speed * UPGRADES.speed.value)
     return true
   }
 
