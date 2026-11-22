@@ -1,3 +1,6 @@
+import { FlightAssets } from '../art/FlightAssets'
+import { DEFAULT_AIRCRAFT } from '../config/aircraft'
+import { SKINS } from '../config/appearance'
 import Phaser from 'phaser'
 import { HEIGHT, STEP, WIDTH } from '../config/field'
 import type { Upgrade } from '../config/upgrades'
@@ -18,6 +21,7 @@ export class FlightScene extends Phaser.Scene {
   private art!: FlightArt
   private cover!: Phaser.GameObjects.Image
   private listeners!: AbortController
+  private readonly assets = new FlightAssets()
   private readonly profile = loadProfile()
   private readonly soundtrack = new Audio(this.profile.sound)
 
@@ -25,19 +29,38 @@ export class FlightScene extends Phaser.Scene {
     super('flight')
   }
 
+  preload() { this.assets.preload(this) }
+
   create() {
+    this.assets.install(this)
     this.background('mission-sky', false)
     this.cover = this.background('mission-cover', true)
-    this.art = new FlightArt(this.add.graphics())
+    this.makeSky('mission-gallery', true, false)
+    this.updateCover()
+    const body = this.add.image(0, 0, 'ship-aurora').setDepth(1).setVisible(false)
+    this.art = new FlightArt(this.add.graphics(), this.add.graphics().setDepth(2), body)
     this.controls = new Controls(document.querySelector('#screen')!)
-    this.ui = new FlightUI(document.querySelector('#interface')!)
+    this.ui = new FlightUI(document.querySelector('#interface')!, this.assets)
     this.controls.bindFocus(this.ui.focus)
     this.controls.onPause = () => this.togglePause()
     this.controls.onBomb = () => this.bomb()
+    this.controls.onSkill = () => this.skill()
     this.ui.bind({
       start: () => this.start(),
       pause: this.controls.onPause,
       bomb: this.controls.onBomb,
+      skill: this.controls.onSkill,
+      hangar: () => this.ui.openHangar(this.profile),
+      aircraft: (id) => {
+        this.profile.aircraft = id
+        saveProfile(this.profile)
+        this.ui.updateHangar(this.profile)
+      },
+      skin: (id) => {
+        this.profile.skin = id
+        saveProfile(this.profile)
+        this.ui.updateHangar(this.profile)
+      },
       menu: () => this.menu(),
       choose: (id) => this.choose(id),
       settings: () => this.ui.settings(this.profile),
@@ -71,26 +94,39 @@ export class FlightScene extends Phaser.Scene {
       this.run = null
       this.textures.remove('mission-sky')
       this.textures.remove('mission-cover')
+      this.textures.remove('mission-gallery')
+      this.assets.destroy(this)
     })
   }
 
   private background(key: string, cover: boolean) {
-    const texture = this.textures.createCanvas(key, WIDTH, HEIGHT)!
-    paintSky(texture.getContext(), cover)
-    texture.refresh()
+    this.makeSky(key, cover)
     return this.add.image(0, 0, key).setOrigin(0)
+  }
+
+  private makeSky(key: string, cover: boolean, ship = true) {
+    const texture = this.textures.createCanvas(key, WIDTH, HEIGHT)!
+    paintSky(texture.getContext(), cover, ship)
+    texture.refresh()
   }
 
   private menu() {
     this.run?.bullets.clear()
     this.run = null
     this.controls.reset()
+    this.updateCover()
     this.cover.setVisible(true)
     this.ui.menu(this.profile)
   }
 
+  private updateCover() {
+    this.cover.setTexture(this.profile.aircraft === DEFAULT_AIRCRAFT ? 'mission-cover' : 'mission-gallery')
+  }
+
   private start() {
-    this.run = new Run(this.profile.quality === 'high')
+    this.run = new Run(this.profile.quality === 'high', Math.random, this.profile.aircraft)
+    const { key, size } = this.assets.sprite(this, this.profile.aircraft, this.profile.skin)
+    this.art.setAvatar(key, size)
     this.cover.setVisible(false)
     this.accumulator = 0
     this.hudIn = 0
@@ -113,7 +149,7 @@ export class FlightScene extends Phaser.Scene {
 
   private togglePause() {
     if (!this.run) {
-      if (!document.querySelector<HTMLElement>('#settings-panel')?.hidden) this.menu()
+      if (document.querySelector('#settings-panel:not([hidden]), #hangar-panel:not([hidden])')) this.menu()
       return
     }
     if (this.run.state !== 'playing' && this.run.state !== 'paused') return
@@ -134,6 +170,14 @@ export class FlightScene extends Phaser.Scene {
     this.soundtrack.cue('blast')
     this.ui.hud(this.run)
     if (this.run.state === 'won') this.finish(this.run)
+  }
+
+  private skill() {
+    const run = this.run
+    if (!run?.activateSkill()) return
+    this.soundtrack.cue('skill')
+    this.ui.hud(run)
+    if (run.state === 'won') this.finish(run)
   }
 
   private finish(run: Run) {
@@ -166,7 +210,7 @@ export class FlightScene extends Phaser.Scene {
     } else if (run?.state === 'won' || run?.state === 'lost') {
       run.effects.update(dt)
     }
-    this.art.draw(dt, run)
+    this.art.draw(dt, run, SKINS[this.profile.skin])
   }
 
   private handleRunState(run: Run) {

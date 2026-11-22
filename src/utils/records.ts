@@ -1,14 +1,21 @@
+import { aircraftId, DEFAULT_AIRCRAFT } from '../config/aircraft'
+import type { AircraftId } from '../config/aircraft'
+import { DEFAULT_SKIN, skinId } from '../config/appearance'
+import type { SkinId } from '../config/appearance'
 import type { Run } from '../systems/Run'
 
 export interface Profile {
   highScore: number
   bestClear: { time: number; score: number } | null
+  aircraft: AircraftId
+  skin: SkinId
   sound: boolean
   quality: 'high' | 'low'
 }
 
 const KEY = 'astral-barrage.profile.v1'
-const defaults: Profile = { highScore: 0, bestClear: null, sound: true, quality: 'high' }
+const defaults: Profile = { highScore: 0, bestClear: null, aircraft: DEFAULT_AIRCRAFT, skin: DEFAULT_SKIN,
+  sound: true, quality: 'high' }
 
 export function loadProfile(): Profile {
   try {
@@ -18,6 +25,8 @@ export function loadProfile(): Profile {
       highScore: safeNumber(saved?.highScore),
       bestClear: best && safeNumber(best.time) > 0
         ? { time: safeNumber(best.time), score: safeNumber(best.score) } : null,
+      aircraft: aircraftId(saved?.aircraft),
+      skin: skinId(saved?.skin),
       sound: typeof saved?.sound === 'boolean' ? saved.sound : defaults.sound,
       quality: saved?.quality === 'low' ? 'low' : 'high',
     }

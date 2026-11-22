@@ -3,6 +3,7 @@ import { HEIGHT, WIDTH } from './config/field'
 import { FlightScene } from './scenes/FlightScene'
 import { registerWorker } from './utils/registerWorker'
 import './style.css'
+import './ui/hangar.css'
 
 new Phaser.Game({
   type: Phaser.CANVAS,

@@ -1,7 +1,8 @@
 import type Phaser from 'phaser'
 import { HEIGHT, WIDTH } from '../config/field'
+import { DEFAULT_AIRCRAFT } from '../config/aircraft'
+import type { Skin } from '../config/appearance'
 import type { Boss } from '../entities/Boss'
-import type { Player } from '../entities/Player'
 import { Shape } from '../systems/BulletManager'
 import type { Run } from '../systems/Run'
 
@@ -17,18 +18,30 @@ export class FlightArt {
   private lastRun: Run | null | undefined
   private lastState: Run['state'] | undefined
 
-  constructor(private readonly graphics: Graphics) {}
+  constructor(private readonly graphics: Graphics, private readonly foreground: Graphics,
+    private readonly body: Phaser.GameObjects.Image) {}
 
-  draw(delta: number, run: Run | null) {
+  setAvatar(key: string, size: number) {
+    this.body.setTexture(key)
+    const height = size * this.body.height / this.body.width
+    this.body.setDisplaySize(size, height)
+  }
+
+  draw(delta: number, run: Run | null, skin: Skin) {
     const state = run?.state
     if (this.lastRun === run && this.lastState === state &&
         (!run || state === 'paused' || state === 'upgrade')) return
     this.lastRun = run
     this.lastState = state
     const g = this.graphics
+    const front = this.foreground
     if (state === 'playing') this.skyTime += delta
     g.clear()
-    if (!run) return
+    front.clear()
+    if (!run) {
+      this.body.setVisible(false)
+      return
+    }
     for (let index = 0; index < (run.enhanced ? this.stars.length : 59); index++) {
       const star = this.stars[index]
       g.fillStyle(star.layer === 2 ? 0xb7bfff : 0x6b91c9, 0.2 + star.layer * 0.16)
@@ -48,32 +61,43 @@ export class FlightArt {
     }
 
     if (run.boss && run.boss.hp) this.boss(run.boss)
+    for (const ring of run.effects.rings) {
+      if (ring.life <= 0) continue
+      const growth = 1 - ring.life / 0.36
+      g.lineStyle(1, ring.color, ring.life * 1.4).strokeCircle(ring.x, ring.y, ring.radius * growth + 3)
+    }
     for (const spark of run.effects.sparks) {
       if (spark.life <= 0) continue
-      g.fillStyle(spark.color, Math.min(0.9, spark.life * 2)).fillRect(spark.x, spark.y, 2.5, 2.5)
+      const size = spark.life * 3.2 + 0.8
+      g.fillStyle(spark.color, Math.min(0.9, spark.life * 2.3)).fillRect(spark.x, spark.y, size, size)
     }
     if (run.effects.bombFlash > 0) {
       const progress = 1 - run.effects.bombFlash / 0.52
-      g.lineStyle(3 * (1 - progress) + 1, 0xa6f6ff, 0.8 * (1 - progress))
+      g.lineStyle(skin.burst.width * (1 - progress) + 1, skin.burst.color, 0.8 * (1 - progress))
       g.strokeCircle(run.player.x, run.player.y, 20 + progress * 630)
     }
-    this.ship(run.player)
+    this.avatar(run, skin)
     for (const bullet of run.bullets.active) {
       const { x, y, radius: r } = bullet
-      g.fillStyle(bullet.color)
+      front.fillStyle(bullet.friendly ? skin.weapon[bullet.weapon ?? 'main'] : bullet.color)
       if (bullet.shape === Shape.Needle) {
-        g.fillRect(x - 1.25, y - 6, 2.5, 13)
+        if (run.enhanced) {
+          front.fillStyle(skin.weapon[bullet.weapon ?? 'main'], 0.18).fillRect(x - 3.2, y - 7, 6.4, 15)
+          front.fillStyle(skin.weapon[bullet.weapon ?? 'main'])
+        }
+        const width = run.skillActive > 0 && bullet.weapon === 'main' ? 3.8 : 2.5
+        front.fillRect(x - width / 2, y - 6, width, 13)
       } else if (bullet.shape === Shape.Missile) {
-        g.save().translateCanvas(x, y).rotateCanvas(Math.atan2(bullet.vy, bullet.vx) + Math.PI / 2)
-        g.lineStyle(0, 0)
-        polygon(g, 0, -8, 3, 4, 0, 8, -3, 4)
-        g.restore()
+        front.save().translateCanvas(x, y).rotateCanvas(Math.atan2(bullet.vy, bullet.vx) + Math.PI / 2)
+        front.lineStyle(0, 0)
+        polygon(front, 0, -8, 3, 4, 0, 8, -3, 4)
+        front.restore()
       } else if (bullet.shape === Shape.Diamond) {
-        g.lineStyle(1, 0xfff6ff, 0.7)
-        diamond(g, x, y, r, r + 1)
+        front.lineStyle(1, 0xfff6ff, 0.7)
+        diamond(front, x, y, r, r + 1)
       } else {
-        g.fillCircle(x, y, r)
-        g.fillStyle(0xfff6ff, 0.85).fillCircle(x, y, r * 0.45)
+        front.fillCircle(x, y, r)
+        front.fillStyle(0xfff6ff, 0.85).fillCircle(x, y, r * 0.45)
       }
     }
   }
@@ -97,24 +121,36 @@ export class FlightArt {
     g.restore()
   }
 
-  private ship(player: Player) {
-    if (player.invulnerable && Math.floor(player.invulnerable * 15) % 2) return
+  private avatar(run: Run, skin: Skin) {
+    const { player } = run
+    const { x, y } = player
     const g = this.graphics
-    g.save().translateCanvas(player.x, player.y).rotateCanvas(player.tilt)
-    const jet = 22 + Math.sin(this.skyTime * 49) * 5
-    g.lineStyle(0, 0).fillStyle(0x724cff, 0.65)
-    polygon(g, -6, 7, 6, 7, 2, jet - 2, 0, jet + 6, -3, jet - 5)
-    g.fillStyle(0x86f5ff)
-    polygon(g, -3.5, 8, 3.5, 8, 0, jet - 3)
-    g.fillStyle(0x242855).lineStyle(1.3, 0x7ed6ff)
-    polygon(g, 0, -19, 6, -4, 17, 9, 17, 13, 5, 9, 0, 12, -5, 9, -17, 13, -17, 9, -6, -4)
-    g.fillStyle(0xc7edff).lineStyle(0, 0)
-    polygon(g, 0, -16, 4, -4, 0, 5, -4, -4)
-    g.fillStyle(0x735dff).fillCircle(0, -4, 2.5)
-    g.restore()
+    const front = this.foreground
+    const visible = !player.invulnerable || Math.floor(player.invulnerable * 15) % 2 === 0
+    const character = run.aircraftId !== DEFAULT_AIRCRAFT
+    this.body.setPosition(x, y).setRotation(player.tilt * (character ? 0.55 : 1)).setVisible(visible)
+    if (visible) {
+      const jet = skin.tail.length + Math.sin(this.skyTime * 49) * 5
+      const width = skin.tail.width
+      g.save().translateCanvas(x, y).rotateCanvas(player.tilt)
+      g.lineStyle(0, 0).fillStyle(skin.tail.outer, 0.65)
+      polygon(g, -width, 7, width, 7, 2, jet - 2, 0, jet + 6, -3, jet - 5)
+      g.fillStyle(skin.tail.inner)
+      polygon(g, -3.5, 8, 3.5, 8, 0, jet - 3)
+      g.restore()
+    }
+    const skill = run.aircraft.skill
+    if (skill?.kind === 'pulse' && run.effects.pulse > 0) {
+      const remaining = run.effects.pulse / skill.invulnerability
+      g.lineStyle(skin.burst.width, skin.burst.color, remaining * 0.8).strokeCircle(x, y, 16 + (skill.radius - 16) * (1 - remaining))
+    }
+    if (skill?.kind === 'barrage' && run.skillActive > 0) {
+      g.lineStyle(1.4, skin.burst.color, 0.65).strokeCircle(x, y, 26 + Math.sin(this.skyTime * 8) * 2)
+      g.strokeCircle(x, y, 34)
+    }
     if (player.focus) {
-      g.lineStyle(1, 0x9eefff, 0.6).strokeCircle(player.x, player.y, 11)
-      g.fillStyle(0xffffff).fillCircle(player.x, player.y, player.radius)
+      front.lineStyle(1, 0x9eefff, 0.6).strokeCircle(x, y, 11)
+      front.fillStyle(0xffffff).fillCircle(x, y, player.radius)
     }
   }
 }

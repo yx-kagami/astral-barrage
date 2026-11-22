@@ -35,3 +35,22 @@ it('retains the fastest victory and the independent high score when the profile 
     vi.unstubAllGlobals()
   }
 })
+
+it('preserves existing records while defaulting missing or unknown appearance selections', () => {
+  let stored = JSON.stringify({ highScore: 730, bestClear: { time: 250, score: 710 }, aircraft: '__proto__' })
+  vi.stubGlobal('localStorage', {
+    getItem: () => stored,
+    setItem: (_key: string, value: string) => { stored = value },
+  })
+  try {
+    const profile = loadProfile()
+    expect(profile).toMatchObject({ aircraft: 'vector', skin: 'aurora', highScore: 730 })
+    profile.aircraft = 'wenxing'
+    profile.skin = 'ember'
+    recordRun(profile, new Run(false))
+    expect(loadProfile()).toMatchObject({ aircraft: 'wenxing', skin: 'ember', highScore: 730,
+      bestClear: { time: 250, score: 710 } })
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
