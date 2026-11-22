@@ -4,14 +4,43 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#080b19">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="弹幕远征">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
   <title>星幕计划：弹幕远征 | Astral Barrage</title>
 </head>
 <body>
   <main id="app">
-    <div id="frame">
-      <div id="screen" aria-label="弹幕远征游戏区域"></div>
-      <div id="interface"></div>
+    <header class="masthead">
+      <div class="brand"><i class="brand-mark" aria-hidden="true"></i><span>ASTRAL <b>BARRAGE</b></span></div>
+      <button type="button" class="top-settings" id="desktop-settings"><span aria-hidden="true">⚙</span> 游戏设置</button>
+    </header>
+    <div class="layout">
+      <aside class="mission">
+        <span class="section-label">远征任务</span>
+        <h2>穿越星幕<span>，</span><br>击沉晦星方舟。</h2>
+        <p>躲避弹幕，收集敌机残片强化火力。三分钟后迎战机械星舰。</p>
+        <div class="record-label"><span class="section-label">最高分</span><strong id="side-record">000000</strong></div>
+      </aside>
+      <div id="frame">
+        <div id="screen" aria-label="弹幕远征游戏区域"></div>
+        <div id="interface"></div>
+      </div>
+      <aside class="keyguide">
+        <span class="section-label">键盘操作</span>
+        <dl>
+          <div><dt>移动</dt><dd><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></dd></div>
+          <div><dt>精确移动</dt><dd><kbd>Shift</kbd></dd></div>
+          <div><dt>释放炸弹</dt><dd><kbd>X</kbd></dd></div>
+          <div><dt>暂停 / 继续</dt><dd><kbd>Esc</kbd></dd></div>
+        </dl>
+        <p>主炮自动射击</p>
+      </aside>
     </div>
+    <div class="rotation" role="status"><span aria-hidden="true">↻</span>请旋转手机，以竖屏继续远征。</div>
   </main>
   <script type="module" src="/src/main.ts"></script>
 </body>

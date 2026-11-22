@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { HEIGHT, WIDTH } from './config/field'
 import { FlightScene } from './scenes/FlightScene'
+import { registerWorker } from './utils/registerWorker'
 import './style.css'
 
 new Phaser.Game({
@@ -9,6 +10,9 @@ new Phaser.Game({
   width: WIDTH,
   height: HEIGHT,
   scene: FlightScene,
+  fps: { smoothStep: false },
   input: { keyboard: false, mouse: false, touch: false },
   banner: false,
 })
+
+registerWorker()
